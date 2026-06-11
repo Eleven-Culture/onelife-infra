@@ -1,0 +1,123 @@
+services:
+  api-gateway:
+    image: onelife-api-gateway:latest
+    container_name: onelife-api-gateway
+    ports:
+      - "${API_GATEWAY_PORT}:8080"
+    environment:
+      USER_SERVICE_URL: http://user-service:8081
+      CORE_SERVICE_URL: http://core-service:8082
+      AI_SERVICE_URL: http://ai-service:8000
+    depends_on:
+      - user-service
+      - core-service
+      - ai-service
+    networks:
+      - onelife-network
+
+  user-service:
+    image: onelife-user-service:latest
+    container_name: onelife-user-service
+    ports:
+      - "${USER_SERVICE_PORT}:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/${POSTGRES_USER_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      - user-db
+    networks:
+      - onelife-network
+
+  core-service:
+    image: onelife-core-service:latest
+    container_name: onelife-core-service
+    ports:
+      - "${CORE_SERVICE_PORT}:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://core-db:5432/${POSTGRES_CORE_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      - core-db
+    networks:
+      - onelife-network
+
+  ai-service:
+    image: onelife-ai-service:latest
+    container_name: onelife-ai-service
+    ports:
+      - "${AI_SERVICE_PORT}:8000"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@ai-db:5432/${POSTGRES_AI_DB}
+    depends_on:
+      - ai-db
+    networks:
+      - onelife-network
+
+  user-db:
+    image: postgres:16
+    container_name: onelife-user-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_USER_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+       # - "5433:5432" for gateway access
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - onelife-network
+
+  core-db:
+    image: postgres:16
+    container_name: onelife-core-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_CORE_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5434:5432"
+    volumes:
+      - core-db-data:/var/lib/postgresql/data
+    networks:
+      - onelife-network
+
+  ai-db:
+    image: postgres:16
+    container_name: onelife-ai-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_AI_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5435:5432"
+    volumes:
+      - ai-db-data:/var/lib/postgresql/data
+    networks:
+      - onelife-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: onelife-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@onelife.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - user-db
+      - core-db
+      - ai-db
+    networks:
+      - onelife-network
+
+volumes:
+  user-db-data:
+  core-db-data:
+  ai-db-data:
+
+networks:
+  onelife-network:
+    driver: bridge
