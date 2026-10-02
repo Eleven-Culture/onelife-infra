@@ -1,6 +1,9 @@
 services:
   api-gateway:
+    build:
+      context: ../onelife-api-gateway
     image: onelife-api-gateway:latest
+    pull_policy: build
     container_name: onelife-api-gateway
     ports:
       - "${API_GATEWAY_PORT}:8080"
@@ -11,12 +14,14 @@ services:
     depends_on:
       - user-service
       - core-service
-      - ai-service
     networks:
       - onelife-network
 
   user-service:
+    build:
+      context: ../onelife-user-service
     image: onelife-user-service:latest
+    pull_policy: build
     container_name: onelife-user-service
     ports:
       - "${USER_SERVICE_PORT}:8081"
@@ -25,25 +30,35 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
     depends_on:
-      - user-db
+      user-db:
+        condition: service_healthy
     networks:
       - onelife-network
 
   core-service:
+    build:
+      context: ../onelife-core-service
     image: onelife-core-service:latest
+    pull_policy: build
     container_name: onelife-core-service
     ports:
       - "${CORE_SERVICE_PORT}:8082"
     environment:
+      SERVER_PORT: 8082
       SPRING_DATASOURCE_URL: jdbc:postgresql://core-db:5432/${POSTGRES_CORE_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
     depends_on:
-      - core-db
+      core-db:
+        condition: service_healthy
     networks:
       - onelife-network
 
   ai-service:
+    profiles: ["ai"]
+    build:
+      context: ../onelife-ai-service
+    pull_policy: build
     image: onelife-ai-service:latest
     container_name: onelife-ai-service
     ports:
@@ -58,6 +73,11 @@ services:
   user-db:
     image: postgres:16
     container_name: onelife-user-db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     environment:
       POSTGRES_DB: ${POSTGRES_USER_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -73,6 +93,11 @@ services:
   core-db:
     image: postgres:16
     container_name: onelife-core-db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     environment:
       POSTGRES_DB: ${POSTGRES_CORE_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -85,8 +110,14 @@ services:
       - onelife-network
 
   ai-db:
+    profiles: ["ai"]
     image: postgres:16
     container_name: onelife-ai-db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     environment:
       POSTGRES_DB: ${POSTGRES_AI_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -109,7 +140,6 @@ services:
     depends_on:
       - user-db
       - core-db
-      - ai-db
     networks:
       - onelife-network
 

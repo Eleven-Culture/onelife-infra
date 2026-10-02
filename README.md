@@ -31,12 +31,21 @@ User Service                 Core Service
 
 ## Prerequisites
 
-- Docker
-- Docker Compose
-- Java 21
-- Python 3.12+
-- Node.js 22+
-- React Native development environment
+- Docker with Docker Compose v2.23 or newer, with the Docker daemon running.
+- Clone the service repositories alongside this infrastructure repository:
+
+```text
+onelife-platform/
+├── onelife-infra/
+├── onelife-api-gateway/
+├── onelife-user-service/
+└── onelife-core-service/
+```
+
+Docker builds the Java applications using their Gradle wrappers; no local Java or
+Gradle installation is required. The first build needs internet access to download
+base images, Gradle, and dependencies. User service and gateway use Java 21; core
+uses Java 26, matching each project's Gradle toolchain.
 
 ## Local Services
 
@@ -46,7 +55,7 @@ User Service                 Core Service
 | User Service | 8081 |
 | Core Service | 8082 |
 | AI Service | 8000 |
-| User DB | 5433 |
+| User DB | 5432 |
 | Core DB | 5434 |
 | AI DB | 5435 |
 | pgAdmin | 5050 |
@@ -69,43 +78,32 @@ POSTGRES_CORE_DB=onelife_core_db
 POSTGRES_AI_DB=onelife_ai_db
 ```
 
-## Build Service Images
+## Build and Start
 
-Build all services before starting the infrastructure.
-
-### User Service
+From `onelife-infra`, after creating `.env` as described above:
 
 ```bash
-cd onelife-user-service
-docker build -t onelife-user-service:latest .
+docker compose up -d --build
 ```
 
-### Core Service
+Compose builds the gateway, user service, and core service from the sibling
+repositories. Their `pull_policy: build` also makes a plain `docker compose up -d`
+build locally instead of trying to pull private OneLife images from Docker Hub.
+The user and core services wait for their databases to become healthy.
+
+### Optional AI service
+
+AI is disabled by default because its source is not included in this workspace.
+To enable it, clone `onelife-ai-service` alongside the other repositories and ensure
+it includes a Dockerfile that starts the application on `0.0.0.0:8000`. Then run:
 
 ```bash
-cd onelife-core-service
-docker build -t onelife-core-service:latest .
+docker compose --profile ai up -d --build
 ```
 
-### API Gateway
-
-```bash
-cd onelife-api-gateway
-docker build -t onelife-api-gateway:latest .
-```
-
-### AI Service
-
-```bash
-cd onelife-ai-service
-docker build -t onelife-ai-service:latest .
-```
-
-## Start Infrastructure
-
-```bash
-docker compose up -d
-```
+This also starts the AI database. AI gateway routes require this profile and a
+working AI implementation. To stop the full stack including AI, run
+`docker compose --profile ai down`.
 
 Check running containers:
 
